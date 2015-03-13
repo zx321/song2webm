@@ -1,0 +1,42 @@
+#!/bin/sh
+# Takes in a song file and creates a webm with the audio and the album art + song title in the mp3
+# if there is no album art, uses black background
+SONGFILE=$1
+if [ "$SONGFILE" = "-h" ] || [ "$SONGFILE" = "--help" ] || [ -z "$SONGFILE" ] ; then
+	echo "USAGE:"
+	echo "song2webm SONG_FILENAME [WEBM_FILENAME]"
+	echo "If the webm filename does not have a .webm extension, the utility will add one."
+	echo "If none is specified, it defaults to 'output.webm'."
+	echo "Deps: mutagen-inspect, imagemagick, ffmpeg."
+else
+if [ -z $2 ] ; then
+	OUTPUTFILE="output.webm"
+else
+	SANI=$(echo $2 | grep -e '.webm')
+	if [ -z $SANI ] ; then
+		OUTPUTFILE=$2".webm"
+	else
+		OUTPUTFILE=$2
+	fi
+fi
+
+SONGTITLE=$(
+	mutagen-inspect $SONGFILE |
+	grep -e 'TIT2.\+' |
+	sed 's/TIT2=//g'
+)
+SONGAUTHOR=$(
+	mutagen-inspect $SONGFILE |
+	grep -e 'TPE1.\+' |
+	sed 's/TPE1=//g'
+)
+
+$(ffmpeg -i $SONGFILE art.jpg)
+if [ -f art.jpg ] ; then
+	$(convert art.jpg -background Khaki -pointsize 36 -gravity center label:"$SONGAUTHOR - $SONGTITLE" -append img.jpg)
+else
+	$(convert -background black -fill white -size 720x480 -gravity center label:"$SONGAUTHOR - $SONGTITLE" img.jpg)
+fi
+$(ffmpeg -i img.jpg -i "$SONGFILE" "$OUTPUTFILE")
+$(rm img.jpg art.jpg > /dev/null 2>&1)
+fi

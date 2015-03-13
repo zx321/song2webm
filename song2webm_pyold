@@ -1,0 +1,50 @@
+#!/usr/bin/env python2
+import subprocess
+import sys
+import re
+import os
+
+if len(sys.argv) > 1 and (sys.argv[1] == "-h" or sys.argv[1] == "--help") :
+	print 'USAGE: majik -h : help'
+	print '       majik <SONG_FILENAME> <OUTPUT_FILENAME>'
+	sys.exit(0)
+
+try :
+	output_filename = sys.argv[2]
+	if not re.search("webm", output_filename):
+		output_filename = "output.webm"
+except :
+	output_filename = "output.webm"
+
+try :
+	song_filename = sys.argv[1]
+	dude = subprocess.Popen(
+		['mutagen-inspect', song_filename],
+		stdout=subprocess.PIPE
+	)
+	dude_comm = dude.communicate()
+	filtered_comm = re.search("TIT2.+",dude_comm[0])
+	filtered_comm2 = re.search("TPE1.+",dude_comm[0])
+	full_title = ''.join((
+		dude_comm[0][filtered_comm2.start():filtered_comm2.end()][5:],
+		" - ",
+		dude_comm[0][filtered_comm.start():filtered_comm.end()][5:]
+	))
+	print full_title
+	subprocess.call(['ffmpeg', '-i', song_filename, 'art.jpg'])
+	if os.path.isfile('art.jpg') :
+		subprocess.call(["convert", "art.jpg", "-background", "Khaki", "-pointsize", "36",
+			"-gravity", "center", "label:" + full_title, "-append",
+			"img.jpg"])
+
+	else :
+		subprocess.call(["convert", "-background", "black", "-fill", "white",
+			"-size", "720x480", "-gravity", "center", "label:" + full_title,
+			"img.jpg"])
+	
+	subprocess.call(["ffmpeg", "-i", "img.jpg", "-i", song_filename, output_filename], stdout=None)
+	subprocess.call(["rm", "img.jpg", "art.jpg"])
+except IndexError :
+	print 'USAGE: majik -h : help'
+        print '       majik <SONG_FILENAME> <OUTPUT_FILENAME>'
+	
